@@ -40,13 +40,13 @@ def merge_pdfs(pdf_list, output_path):
 # Function to compress and convert image to QR code
 def image_to_qr(image_file):
     qr = qrcode.QRCode(
-        version=1,
+        version=1,  # Version 1 is the smallest and allows for less data
         box_size=10,
         border=5
     )
     
     img = Image.open(image_file)  # Open the image file
-    img = img.resize((256, 256))  # Resize the image to reduce size (compression)
+    img = img.resize((128, 128))  # Resize the image to reduce size (compression)
 
     buffered = BytesIO()
     img.save(buffered, format="PNG")
