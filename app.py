@@ -1,141 +1,153 @@
 import streamlit as st
 import os
 from docx import Document
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 from fpdf import FPDF
-import qrcode
-from PIL import Image
-import PyPDF2
 from pdf2docx import Converter
+import qrcode
 import openai
 
-# Function to convert DOCX to PDF
+# Set OpenAI API Key
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
+# Function: DOCX to PDF
 def docx_to_pdf(input_path, output_path):
     document = Document(input_path)
+    pdf = canvas.Canvas(output_path, pagesize=letter)
+    y_position = 750  
+    for para in document.paragraphs:
+        pdf.drawString(100, y_position, para.text)
+        y_position -= 20  
+        if y_position < 50:
+            pdf.showPage()
+            y_position = 750
+    pdf.save()
+
+# Function: PDF to DOCX
+def pdf_to_docx(input_path, output_path):
+    cv = Converter(input_path)
+    cv.convert(output_path, start=0, end=None)
+    cv.close()
+
+# Function: Text to PDF
+def text_to_pdf(text, output_path):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-
-    for para in document.paragraphs:
-        text = para.text.encode('latin-1', 'replace').decode('latin-1')
-        pdf.multi_cell(0, 10, text)
-
+    for line in text.split('\n'):
+        pdf.cell(200, 10, txt=line, ln=True)
     pdf.output(output_path)
 
-# Function to convert PDF to DOCX
-def pdf_to_word(input_pdf, output_docx):
-    cv = Converter(input_pdf)
-    cv.convert(output_docx)
-    cv.close()
+# Function: Image to QR Code
+def image_to_qr_code(image_url, output_path):
+    qr = qrcode.make(image_url)
+    qr.save(output_path)
 
-# Function to merge PDFs
-def merge_pdfs(pdf_list, output_path):
-    merger = PyPDF2.PdfMerger()
-    for pdf in pdf_list:
-        merger.append(pdf)
-    merger.write(output_path)
-    merger.close()
-
-# Function to generate QR Code from image
-def image_to_qr(image_file):
-    qr = qrcode.QRCode(
-        version=1,
-        box_size=10,
-        border=5
-    )
-    img = Image.open(image_file)
-    qr.add_data(img.tobytes())
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white")
-    return qr_img
-
-# Function to generate image from text (AI)
+# Function: Generate AI Image
 def generate_ai_image(prompt):
-    openai.api_key = st.secrets["OPENAI_API_KEY"]  # Set your OpenAI API key in Streamlit secrets
     try:
         response = openai.Image.create(
             prompt=prompt,
             n=1,
             size="512x512"
         )
-        return response['data'][0]['url']
+        image_url = response['data'][0]['url']
+        return image_url
     except Exception as e:
-        return str(e)
+        return f"Error generating image: {e}"
 
-# Streamlit app for QuickToolBox
+# Streamlit UI
 def main():
-    st.title("🔥 QuickToolBox - Convert, Generate & Create! 🔥")
+    st.title("🔥 QuickToolBox - All-in-One Tool 🔥")
 
-    # Section for DOCX to PDF
-    st.header("📄 DOCX to PDF Converter")
-    uploaded_docx = st.file_uploader("Upload DOCX file", type="docx", key="docx")
-    if uploaded_docx is not None:
-        output_pdf = "converted_from_docx.pdf"
-        with open("temp_uploaded.docx", "wb") as f:
-            f.write(uploaded_docx.getbuffer())
-        docx_to_pdf("temp_uploaded.docx", output_pdf)
-        st.success("DOCX successfully converted to PDF!")
-        with open(output_pdf, "rb") as f:
-            st.download_button("Download PDF", f, file_name="converted.pdf", mime="application/pdf")
-        os.remove("temp_uploaded.docx")
+    st.sidebar.title("Choose a Tool")
+    option = st.sidebar.selectbox(
+        "Select an action",
+        (
+            "DOCX to PDF",
+            "PDF to DOCX",
+            "Text to PDF",
+            "Image URL to QR Code",
+            "AI Image Generator"
+        )
+    )
 
-    # Section for PDF to DOCX
-    st.header("🔄 PDF to DOCX Converter")
-    uploaded_pdf = st.file_uploader("Upload PDF file", type="pdf", key="pdf")
-    if uploaded_pdf is not None:
-        output_docx = "converted_from_pdf.docx"
-        with open("temp_uploaded.pdf", "wb") as f:
-            f.write(uploaded_pdf.getbuffer())
-        pdf_to_word("temp_uploaded.pdf", output_docx)
-        st.success("PDF successfully converted to DOCX!")
-        with open(output_docx, "rb") as f:
-            st.download_button("Download DOCX", f, file_name="converted.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-        os.remove("temp_uploaded.pdf")
+    if option == "DOCX to PDF":
+        st.header("📄 DOCX to PDF Converter")
+        uploaded_file = st.file_uploader("Upload a DOCX file", type="docx")
+        if uploaded_file:
+            with open("uploaded.docx", "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            output_path = "converted.pdf"
+            docx_to_pdf("uploaded.docx", output_path)
+            st.success("Conversion successful!")
+            with open(output_path, "rb") as file:
+                st.download_button(
+                    label="Download PDF",
+                    data=file,
+                    file_name="converted.pdf",
+                    mime="application/pdf"
+                )
+            os.remove("uploaded.docx")
 
-    # Section for Merging PDFs
-    st.header("🧩 Merge Multiple PDFs")
-    uploaded_pdfs = st.file_uploader("Upload multiple PDFs", type="pdf", accept_multiple_files=True)
-    if uploaded_pdfs:
-        if st.button("Merge PDFs"):
-            pdf_paths = []
-            for i, uploaded_pdf in enumerate(uploaded_pdfs):
-                pdf_path = f"temp_{i}.pdf"
-                with open(pdf_path, "wb") as f:
-                    f.write(uploaded_pdf.getbuffer())
-                pdf_paths.append(pdf_path)
+    elif option == "PDF to DOCX":
+        st.header("📄 PDF to DOCX Converter")
+        uploaded_file = st.file_uploader("Upload a PDF file", type="pdf")
+        if uploaded_file:
+            with open("uploaded.pdf", "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            output_path = "converted.docx"
+            pdf_to_docx("uploaded.pdf", output_path)
+            st.success("Conversion successful!")
+            with open(output_path, "rb") as file:
+                st.download_button(
+                    label="Download DOCX",
+                    data=file,
+                    file_name="converted.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
+            os.remove("uploaded.pdf")
 
-            merged_output = "merged_output.pdf"
-            merge_pdfs(pdf_paths, merged_output)
+    elif option == "Text to PDF":
+        st.header("📝 Text to PDF Converter")
+        text_input = st.text_area("Enter your text")
+        if st.button("Convert to PDF"):
+            output_path = "text_output.pdf"
+            text_to_pdf(text_input, output_path)
+            st.success("Conversion successful!")
+            with open(output_path, "rb") as file:
+                st.download_button(
+                    label="Download PDF",
+                    data=file,
+                    file_name="text_output.pdf",
+                    mime="application/pdf"
+                )
 
-            st.success("PDFs merged successfully!")
-            with open(merged_output, "rb") as f:
-                st.download_button("Download Merged PDF", f, file_name="merged.pdf", mime="application/pdf")
+    elif option == "Image URL to QR Code":
+        st.header("🌐 Image URL to QR Code Generator")
+        image_url = st.text_input("Enter Image URL")
+        if st.button("Generate QR Code"):
+            output_path = "qrcode.png"
+            image_to_qr_code(image_url, output_path)
+            st.image(output_path, caption="Generated QR Code", use_column_width=True)
+            with open(output_path, "rb") as file:
+                st.download_button(
+                    label="Download QR Code",
+                    data=file,
+                    file_name="qrcode.png",
+                    mime="image/png"
+                )
 
-            # Clean up temporary files
-            for path in pdf_paths:
-                os.remove(path)
-
-    # Section for Image to QR Code
-    st.header("🔳 Image to QR Code")
-    uploaded_image = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"], key="img")
-    if uploaded_image is not None:
-        if st.button("Convert to QR Code"):
-            qr_img = image_to_qr(uploaded_image)
-            st.image(qr_img, caption="Generated QR Code", use_column_width=True)
-
-            qr_img.save("generated_qr.png")
-            with open("generated_qr.png", "rb") as f:
-                st.download_button("Download QR Code", data=f, file_name="qr_code.png", mime="image/png")
-
-    # Section for AI Image Generation
-    st.header("🎨 AI Image Generator")
-    prompt = st.text_input("Enter a prompt to generate an image")
-    if prompt:
-        if st.button("Generate AI Image"):
+    elif option == "AI Image Generator":
+        st.header("🎨 AI Image Generator")
+        prompt = st.text_input("Enter a prompt to generate an image")
+        if st.button("Generate Image"):
             img_url = generate_ai_image(prompt)
-            if img_url.startswith("http"):
-                st.image(img_url, caption="AI Generated Image", use_column_width=True)
+            if "Error" not in img_url:
+                st.image(img_url, caption="Generated Image", use_column_width=True)
             else:
-                st.error(f"Error: {img_url}")
+                st.error(img_url)
 
 if __name__ == "__main__":
     main()
