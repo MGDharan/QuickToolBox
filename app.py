@@ -29,9 +29,15 @@ def docx_to_pdf(input_path, output_path):
 # Function to download Instagram post or video
 def download_instagram_post(post_url, download_dir):
     loader = instaloader.Instaloader()
+
     try:
-        post = instaloader.Post.from_url(loader.context, post_url)
+        shortcode = post_url.split("/")[-2]  # Extract the shortcode from the URL
+        post = instaloader.Post.from_shortcode(loader.context, shortcode)
         filename = os.path.join(download_dir, f"{post.owner_username}_{post.shortcode}")
+        
+        if not os.path.exists(download_dir):  # Ensure download directory exists
+            os.makedirs(download_dir)
+        
         loader.download_post(post, target=filename)
         return f"Downloaded to {filename}"
     except Exception as e:
@@ -42,6 +48,10 @@ def download_youtube_video(url, download_dir):
     try:
         yt = YouTube(url)
         stream = yt.streams.get_highest_resolution()
+
+        if not os.path.exists(download_dir):  # Ensure download directory exists
+            os.makedirs(download_dir)
+
         stream.download(download_dir)
         return f"Downloaded video: {yt.title}"
     except Exception as e:
