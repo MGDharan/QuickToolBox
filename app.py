@@ -5,6 +5,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import instaloader
 from pytube import YouTube
+import urllib.parse
 
 # Function to convert DOCX to PDF
 def docx_to_pdf(input_path, output_path):
@@ -28,9 +29,12 @@ def docx_to_pdf(input_path, output_path):
 
 # Function to download Instagram post or video
 def download_instagram_post(post_url, download_dir):
+    # Remove any query parameters (like ?igsh=...)
+    clean_url = urllib.parse.urlparse(post_url)._replace(query='').geturl()
+    
     loader = instaloader.Instaloader()
     try:
-        post = instaloader.Post.from_url(loader.context, post_url)
+        post = instaloader.Post.from_url(loader.context, clean_url)
         filename = os.path.join(download_dir, f"{post.owner_username}_{post.shortcode}")
         loader.download_post(post, target=filename)
         return f"Downloaded to {filename}"
@@ -40,7 +44,10 @@ def download_instagram_post(post_url, download_dir):
 # Function to download YouTube video
 def download_youtube_video(url, download_dir):
     try:
-        yt = YouTube(url)
+        # Remove any query parameters (like ?si=...)
+        clean_url = url.split('?')[0]
+        
+        yt = YouTube(clean_url)
         stream = yt.streams.get_highest_resolution()
         stream.download(download_dir)
         return f"Downloaded video: {yt.title}"
