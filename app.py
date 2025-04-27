@@ -4,6 +4,7 @@ from docx import Document
 from fpdf import FPDF
 import qrcode
 from PIL import Image
+import base64
 import PyPDF2
 from pdf2docx import Converter
 import openai
@@ -36,7 +37,7 @@ def merge_pdfs(pdf_list, output_path):
     merger.write(output_path)
     merger.close()
 
-# Function to generate QR Code from image
+# Function to compress and convert image to QR code
 def image_to_qr(image_file):
     qr = qrcode.QRCode(
         version=1,
@@ -45,8 +46,13 @@ def image_to_qr(image_file):
     )
     
     img = Image.open(image_file)  # Open the image file
-    img = img.convert("RGB")  # Ensure the image is in RGB format
-    qr.add_data(img.tobytes())  # Adding image bytes to QR data (if that's your intention)
+    img = img.resize((256, 256))  # Resize the image to reduce size (compression)
+
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')  # Convert image to base64 string
+    
+    qr.add_data(img_base64)  # Add the base64-encoded image to QR code data
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white")
     return qr_img
