@@ -1,5 +1,7 @@
 import streamlit as st
 import os
+import torch
+
 from docx import Document
 from fpdf import FPDF
 import base64
