@@ -8,4 +8,5 @@ PyPDF2
 qrcode
 tensorflow
 tf-keras
+torch
 # OR torch if you prefer PyTorch
