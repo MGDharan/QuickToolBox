@@ -7,6 +7,7 @@ from PIL import Image
 import PyPDF2
 from pdf2docx import Converter
 import openai
+from io import BytesIO
 
 # Function to convert DOCX to PDF
 def docx_to_pdf(input_path, output_path):
@@ -42,8 +43,10 @@ def image_to_qr(image_file):
         box_size=10,
         border=5
     )
-    img = Image.open(image_file)
-    qr.add_data(img.tobytes())
+    
+    img = Image.open(image_file)  # Open the image file
+    img = img.convert("RGB")  # Ensure the image is in RGB format
+    qr.add_data(img.tobytes())  # Adding image bytes to QR data (if that's your intention)
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white")
     return qr_img
