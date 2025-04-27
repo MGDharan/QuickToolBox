@@ -1,77 +1,98 @@
+import streamlit as st
 import os
-from pytube import YouTube
+from docx import Document
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
 import instaloader
-import yt_dlp
-from docx2pdf import convert
+from pytube import YouTube
 
-# Function for downloading Instagram posts and reels
-def download_instagram(url, download_dir):
+# Function to convert DOCX to PDF
+def docx_to_pdf(input_path, output_path):
+    # Open the DOCX file using python-docx
+    document = Document(input_path)
+    pdf = canvas.Canvas(output_path, pagesize=letter)
+
+    # Set the initial Y position for text
+    y_position = 750  
+
+    # Loop through the paragraphs in the DOCX file and write them to the PDF
+    for para in document.paragraphs:
+        pdf.drawString(100, y_position, para.text)
+        y_position -= 20  # Move the Y position down for the next line
+
+        if y_position < 50:  # If the Y position is too low, create a new page
+            pdf.showPage()
+            y_position = 750
+
+    pdf.save()
+
+# Function to download Instagram post or video
+def download_instagram_post(post_url, download_dir):
+    loader = instaloader.Instaloader()
     try:
-        loader = instaloader.Instaloader()
-        post = instaloader.Post.from_url(loader.context, url)
-        loader.download_post(post, target=download_dir)
-        return f"Downloaded Instagram post: {post.title}"
+        post = instaloader.Post.from_url(loader.context, post_url)
+        filename = os.path.join(download_dir, f"{post.owner_username}_{post.shortcode}")
+        loader.download_post(post, target=filename)
+        return f"Downloaded to {filename}"
     except Exception as e:
-        return f"Error downloading Instagram post: {str(e)}"
+        return f"Error downloading post: {e}"
 
-# Function for downloading YouTube videos
+# Function to download YouTube video
 def download_youtube_video(url, download_dir):
     try:
-        # Remove query parameters to ensure valid URL
-        clean_url = url.split('?')[0]
-        
-        yt = YouTube(clean_url)
+        yt = YouTube(url)
         stream = yt.streams.get_highest_resolution()
         stream.download(download_dir)
         return f"Downloaded video: {yt.title}"
     except Exception as e:
-        # If pytube fails, try using yt-dlp
-        try:
-            ydl_opts = {
-                'outtmpl': f'{download_dir}/%(title)s.%(ext)s',
-                'format': 'best',
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                ydl.download([url])
-            return "Downloaded successfully using yt-dlp!"
-        except Exception as e:
-            return f"Error downloading video: {str(e)}"
+        return f"Error downloading video: {e}"
 
-# Function for converting Word documents to PDF
-def word_to_pdf(input_path, output_path):
-    try:
-        convert(input_path, output_path)
-        return f"Word document successfully converted to PDF at {output_path}"
-    except Exception as e:
-        return f"Error converting Word document: {str(e)}"
-
-# Main execution flow
+# Streamlit app for file upload and conversion
 def main():
-    download_dir = "downloads"  # Ensure this folder exists, or create it
-    if not os.path.exists(download_dir):
-        os.makedirs(download_dir)
+    st.title("QuickToolBox - DOCX to PDF, Instagram & YouTube Downloader")
 
-    print("Choose an option:")
-    print("1. Instagram Post/Video Downloader")
-    print("2. YouTube Video Downloader")
-    print("3. Word to PDF Converter")
-    choice = input("Enter your choice (1/2/3): ")
+    # DOCX to PDF Conversion
+    st.subheader("DOCX to PDF Converter")
+    uploaded_file = st.file_uploader("Upload a DOCX file", type="docx")
+    if uploaded_file is not None:
+        with open("uploaded_file.docx", "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
-    if choice == "1":
-        instagram_url = input("Enter Instagram Post URL: ")
-        print(download_instagram(instagram_url, download_dir))
+        output_pdf_path = "converted_file.pdf"
 
-    elif choice == "2":
-        youtube_url = input("Enter YouTube Video URL: ")
-        print(download_youtube_video(youtube_url, download_dir))
+        try:
+            docx_to_pdf("uploaded_file.docx", output_pdf_path)
+            st.success("Conversion successful!")
+            
+            with open(output_pdf_path, "rb") as pdf_file:
+                st.download_button(
+                    label="Download PDF",
+                    data=pdf_file,
+                    file_name="converted_file.pdf",
+                    mime="application/pdf"
+                )
+        except Exception as e:
+            st.error(f"An error occurred during conversion: {e}")
 
-    elif choice == "3":
-        word_file = input("Enter the path to the Word document: ")
-        output_pdf = input("Enter the path where you want to save the PDF: ")
-        print(word_to_pdf(word_file, output_pdf))
+        os.remove("uploaded_file.docx")
 
-    else:
-        print("Invalid choice. Please choose 1, 2, or 3.")
+    # Instagram Post/Video Downloader
+    st.subheader("Instagram Post/Video Downloader")
+    instagram_url = st.text_input("Enter Instagram Post URL")
+    if instagram_url:
+        download_button = st.button("Download Instagram Post")
+        if download_button:
+            download_message = download_instagram_post(instagram_url, "downloads/")
+            st.write(download_message)
+
+    # YouTube Video Downloader
+    st.subheader("YouTube Video Downloader")
+    youtube_url = st.text_input("Enter YouTube Video URL")
+    if youtube_url:
+        download_button = st.button("Download YouTube Video")
+        if download_button:
+            download_message = download_youtube_video(youtube_url, "downloads/")
+            st.write(download_message)
 
 if __name__ == "__main__":
     main()
