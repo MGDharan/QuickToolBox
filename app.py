@@ -9,7 +9,6 @@ import PyPDF2
 from pdf2docx import Converter
 import openai
 from io import BytesIO
-import requests
 
 # Function to convert DOCX to PDF
 def docx_to_pdf(input_path, output_path):
@@ -38,39 +37,24 @@ def merge_pdfs(pdf_list, output_path):
     merger.write(output_path)
     merger.close()
 
-# Function to create QR code for image URL instead of the image itself
-def image_to_qr(image_file):
-    # Upload image to a temporary hosting service (for demo purposes)
-    # In a real-world app, you would use a more permanent storage solution
-    
-    # Instead of encoding the image in the QR code, we'll just create a QR code with text
-    # This is a simplified approach that avoids the ValueError
+# Function to create a simple QR code with text
+def create_text_qr(text):
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
         box_size=10,
         border=4,
     )
-    
-    # Add simple text data instead of the image
-    qr.add_data("This is a QR code for an image! In a production app, this would link to the actual uploaded image.")
+    qr.add_data(text)
     qr.make(fit=True)
     
-    qr_img = qr.make_image(fill_color="black", back_color="white")
-    return qr_img
-
-# Alternative function that creates a QR code that links to a URL
-def create_url_qr(url):
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=10,
-        border=4,
-    )
-    qr.add_data(url)
-    qr.make(fit=True)
-    qr_img = qr.make_image(fill_color="black", back_color="white")
-    return qr_img
+    # Create a PIL image
+    img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Convert PIL image to bytes for Streamlit
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    return buffered.getvalue()
 
 # Function to generate image from text (AI)
 def generate_ai_image(prompt):
@@ -138,40 +122,27 @@ def main():
             for path in pdf_paths:
                 os.remove(path)
 
-    # Section for Image to QR Code
-    st.header("🔳 Image to QR Code")
-    st.write("Create a QR code for your image")
+    # Section for QR Code Generator
+    st.header("🔳 QR Code Generator")
+    st.write("Create a QR code with custom text")
     
-    qr_option = st.radio(
-        "Choose a QR code option:",
-        ["Simple QR code", "QR code with custom text"]
-    )
+    qr_text = st.text_input("Enter text for your QR code:", "https://streamlit.io")
     
-    uploaded_image = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"], key="img")
-    
-    if uploaded_image is not None:
-        # Display the uploaded image
-        st.image(uploaded_image, caption="Uploaded Image", width=300)
-        
-        if qr_option == "Simple QR code":
-            if st.button("Generate Simple QR Code"):
-                qr_img = image_to_qr(uploaded_image)
-                st.image(qr_img, caption="Generated QR Code", width=300)
-                
-                # Save and offer download
-                qr_img.save("generated_qr.png")
-                with open("generated_qr.png", "rb") as f:
-                    st.download_button("Download QR Code", data=f, file_name="qr_code.png", mime="image/png")
-        else:
-            custom_text = st.text_input("Enter custom text for your QR code:")
-            if custom_text and st.button("Generate QR with Custom Text"):
-                qr_img = create_url_qr(custom_text)
-                st.image(qr_img, caption="Generated QR Code with Custom Text", width=300)
-                
-                # Save and offer download
-                qr_img.save("generated_qr.png")
-                with open("generated_qr.png", "rb") as f:
-                    st.download_button("Download QR Code", data=f, file_name="qr_code.png", mime="image/png")
+    if qr_text:
+        if st.button("Generate QR Code"):
+            # Generate QR code as bytes
+            qr_bytes = create_text_qr(qr_text)
+            
+            # Display the QR code
+            st.image(qr_bytes, caption="Generated QR Code", width=300)
+            
+            # Offer download option
+            st.download_button(
+                label="Download QR Code",
+                data=qr_bytes,
+                file_name="qr_code.png",
+                mime="image/png"
+            )
 
     # Section for AI Image Generation
     st.header("🎨 AI Image Generator")
