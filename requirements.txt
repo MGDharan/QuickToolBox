@@ -5,3 +5,7 @@ requests
 instaloader
 python-docx
 reportlab
+pytube
+instaloader
+yt-dlp
+docx2pdf
