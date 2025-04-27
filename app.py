@@ -11,9 +11,12 @@ import openai
 from io import BytesIO
 
 # Initialize OpenAI client with API key
-# NOTE: This is for demonstration only. In production, use secrets management
+# Ensure you're getting the OpenAI API key from secrets
 api_key = st.secrets.get("openai", {}).get("api_key")
-client = openai.Client(api_key=api_key)
+if api_key:
+    openai.api_key = api_key
+else:
+    st.error("OpenAI API key is missing. Please check your secrets file.")
 
 # Function to convert DOCX to PDF
 def docx_to_pdf(input_path, output_path):
@@ -61,18 +64,29 @@ def create_text_qr(text):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Function to generate image from text (AI) - updated for OpenAI 1.0+
+# Function to generate image from text (AI) with better error handling
 def generate_ai_image(prompt):
     try:
-        response = client.images.generate(
+        response = openai.Image.create(
             model="dall-e-3",
             prompt=prompt,
-            size="1024x1024",
-            quality="standard"
+            size="1024x1024"
         )
-        return response.data[0].url
+        
+        # Check if the response contains an image URL
+        if "data" in response:
+            return response["data"][0]["url"]
+        else:
+            return f"Error: No data returned from OpenAI API."
+    
+    except openai.error.InvalidRequestError as e:
+        return f"Invalid request: {str(e)}"
+    except openai.error.AuthenticationError as e:
+        return f"Authentication failed: {str(e)}"
+    except openai.error.APIError as e:
+        return f"API error: {str(e)}"
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"An unexpected error occurred: {str(e)}"
 
 # Streamlit app for QuickToolBox
 def main():
