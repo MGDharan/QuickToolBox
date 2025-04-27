@@ -58,8 +58,21 @@ def create_text_qr(text):
 
 # Function to generate image from text (AI)
 def generate_ai_image(prompt):
-    openai.api_key = st.secrets["OPENAI_API_KEY"]  # Set your OpenAI API key in Streamlit secrets
+    # Try to get API key from Streamlit secrets or environment variables
     try:
+        # First try to get from Streamlit secrets
+        api_key = st.secrets.get("OPENAI_API_KEY")
+        
+        # If not found in secrets, try environment variables
+        if api_key is None:
+            api_key = os.environ.get("OPENAI_API_KEY")
+            
+        # If still not found, return an error
+        if api_key is None:
+            return "API key not found. Please set OPENAI_API_KEY in Streamlit secrets or environment variables."
+            
+        openai.api_key = api_key
+        
         response = openai.Image.create(
             prompt=prompt,
             n=1,
@@ -67,7 +80,7 @@ def generate_ai_image(prompt):
         )
         return response['data'][0]['url']
     except Exception as e:
-        return str(e)
+        return f"Error: {str(e)}"
 
 # Streamlit app for QuickToolBox
 def main():
@@ -77,50 +90,61 @@ def main():
     st.header("📄 DOCX to PDF Converter")
     uploaded_docx = st.file_uploader("Upload DOCX file", type="docx", key="docx")
     if uploaded_docx is not None:
-        output_pdf = "converted_from_docx.pdf"
-        with open("temp_uploaded.docx", "wb") as f:
-            f.write(uploaded_docx.getbuffer())
-        docx_to_pdf("temp_uploaded.docx", output_pdf)
-        st.success("DOCX successfully converted to PDF!")
-        with open(output_pdf, "rb") as f:
-            st.download_button("Download PDF", f, file_name="converted.pdf", mime="application/pdf")
-        os.remove("temp_uploaded.docx")
+        if st.button("Convert to PDF", key="convert_docx"):
+            try:
+                output_pdf = "converted_from_docx.pdf"
+                with open("temp_uploaded.docx", "wb") as f:
+                    f.write(uploaded_docx.getbuffer())
+                docx_to_pdf("temp_uploaded.docx", output_pdf)
+                st.success("DOCX successfully converted to PDF!")
+                with open(output_pdf, "rb") as f:
+                    st.download_button("Download PDF", f, file_name="converted.pdf", mime="application/pdf")
+                os.remove("temp_uploaded.docx")
+            except Exception as e:
+                st.error(f"An error occurred during conversion: {e}")
 
     # Section for PDF to DOCX
     st.header("🔄 PDF to DOCX Converter")
     uploaded_pdf = st.file_uploader("Upload PDF file", type="pdf", key="pdf")
     if uploaded_pdf is not None:
-        output_docx = "converted_from_pdf.docx"
-        with open("temp_uploaded.pdf", "wb") as f:
-            f.write(uploaded_pdf.getbuffer())
-        pdf_to_word("temp_uploaded.pdf", output_docx)
-        st.success("PDF successfully converted to DOCX!")
-        with open(output_docx, "rb") as f:
-            st.download_button("Download DOCX", f, file_name="converted.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-        os.remove("temp_uploaded.pdf")
+        if st.button("Convert to DOCX", key="convert_pdf"):
+            try:
+                output_docx = "converted_from_pdf.docx"
+                with open("temp_uploaded.pdf", "wb") as f:
+                    f.write(uploaded_pdf.getbuffer())
+                pdf_to_word("temp_uploaded.pdf", output_docx)
+                st.success("PDF successfully converted to DOCX!")
+                with open(output_docx, "rb") as f:
+                    st.download_button("Download DOCX", f, file_name="converted.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                os.remove("temp_uploaded.pdf")
+            except Exception as e:
+                st.error(f"An error occurred during conversion: {e}")
 
     # Section for Merging PDFs
     st.header("🧩 Merge Multiple PDFs")
     uploaded_pdfs = st.file_uploader("Upload multiple PDFs", type="pdf", accept_multiple_files=True)
     if uploaded_pdfs:
-        if st.button("Merge PDFs"):
-            pdf_paths = []
-            for i, uploaded_pdf in enumerate(uploaded_pdfs):
-                pdf_path = f"temp_{i}.pdf"
-                with open(pdf_path, "wb") as f:
-                    f.write(uploaded_pdf.getbuffer())
-                pdf_paths.append(pdf_path)
+        if st.button("Merge PDFs", key="merge_pdfs"):
+            try:
+                pdf_paths = []
+                for i, uploaded_pdf in enumerate(uploaded_pdfs):
+                    pdf_path = f"temp_{i}.pdf"
+                    with open(pdf_path, "wb") as f:
+                        f.write(uploaded_pdf.getbuffer())
+                    pdf_paths.append(pdf_path)
 
-            merged_output = "merged_output.pdf"
-            merge_pdfs(pdf_paths, merged_output)
+                merged_output = "merged_output.pdf"
+                merge_pdfs(pdf_paths, merged_output)
 
-            st.success("PDFs merged successfully!")
-            with open(merged_output, "rb") as f:
-                st.download_button("Download Merged PDF", f, file_name="merged.pdf", mime="application/pdf")
+                st.success("PDFs merged successfully!")
+                with open(merged_output, "rb") as f:
+                    st.download_button("Download Merged PDF", f, file_name="merged.pdf", mime="application/pdf")
 
-            # Clean up temporary files
-            for path in pdf_paths:
-                os.remove(path)
+                # Clean up temporary files
+                for path in pdf_paths:
+                    os.remove(path)
+            except Exception as e:
+                st.error(f"An error occurred while merging PDFs: {e}")
 
     # Section for QR Code Generator
     st.header("🔳 QR Code Generator")
@@ -129,32 +153,39 @@ def main():
     qr_text = st.text_input("Enter text for your QR code:", "https://streamlit.io")
     
     if qr_text:
-        if st.button("Generate QR Code"):
-            # Generate QR code as bytes
-            qr_bytes = create_text_qr(qr_text)
-            
-            # Display the QR code
-            st.image(qr_bytes, caption="Generated QR Code", width=300)
-            
-            # Offer download option
-            st.download_button(
-                label="Download QR Code",
-                data=qr_bytes,
-                file_name="qr_code.png",
-                mime="image/png"
-            )
+        if st.button("Generate QR Code", key="generate_qr"):
+            try:
+                # Generate QR code as bytes
+                qr_bytes = create_text_qr(qr_text)
+                
+                # Display the QR code
+                st.image(qr_bytes, caption="Generated QR Code", width=300)
+                
+                # Offer download option
+                st.download_button(
+                    label="Download QR Code",
+                    data=qr_bytes,
+                    file_name="qr_code.png",
+                    mime="image/png"
+                )
+            except Exception as e:
+                st.error(f"An error occurred while generating the QR code: {e}")
 
     # Section for AI Image Generation
     st.header("🎨 AI Image Generator")
+    
+    # Notice about API key requirement
+    st.info("Note: This feature requires an OpenAI API key. You can set it up in Streamlit secrets or as an environment variable named 'OPENAI_API_KEY'.")
+    
     prompt = st.text_input("Enter a prompt to generate an image")
     if prompt:
-        if st.button("Generate AI Image"):
+        if st.button("Generate AI Image", key="generate_ai"):
             with st.spinner("Generating your image..."):
                 img_url = generate_ai_image(prompt)
                 if img_url.startswith("http"):
                     st.image(img_url, caption="AI Generated Image", use_column_width=True)
                 else:
-                    st.error(f"Error: {img_url}")
+                    st.error(img_url)  # Display the error message returned from the function
 
 if __name__ == "__main__":
     main()
