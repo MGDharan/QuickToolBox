@@ -1,5 +1,6 @@
-streamlit
+fpdf
+requests
 python-docx
-reportlab
-instaloader
-pytube
+PyPDF2
+qrcode
+transformers
