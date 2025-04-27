@@ -2,3 +2,4 @@ streamlit
 docx2pdf
 pytube
 requests
+instaloader
