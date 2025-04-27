@@ -1,6 +1,10 @@
+streamlit
 fpdf
-requests
-python-docx
+docx
+reportlab
+pillow
+PyMuPDF
 PyPDF2
 qrcode
-transformers
+tensorflow
+# OR torch if you prefer PyTorch
