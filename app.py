@@ -9,7 +9,8 @@ import qrcode
 import openai
 
 # Set OpenAI API Key
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+[general]
+OPENAI_API_KEY = "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"
 
 # Function: DOCX to PDF
 def docx_to_pdf(input_path, output_path):
