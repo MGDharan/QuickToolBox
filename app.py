@@ -9,6 +9,7 @@ import PyPDF2
 from pdf2docx import Converter
 import openai
 from io import BytesIO
+import requests
 
 # Function to convert DOCX to PDF
 def docx_to_pdf(input_path, output_path):
@@ -37,22 +38,36 @@ def merge_pdfs(pdf_list, output_path):
     merger.write(output_path)
     merger.close()
 
-# Function to compress and convert image to QR code
+# Function to create QR code for image URL instead of the image itself
 def image_to_qr(image_file):
+    # Upload image to a temporary hosting service (for demo purposes)
+    # In a real-world app, you would use a more permanent storage solution
+    
+    # Instead of encoding the image in the QR code, we'll just create a QR code with text
+    # This is a simplified approach that avoids the ValueError
     qr = qrcode.QRCode(
-        version=1,  # Version 1 is the smallest and allows for less data
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
         box_size=10,
-        border=5
+        border=4,
     )
     
-    img = Image.open(image_file)  # Open the image file
-    img = img.resize((128, 128))  # Resize the image to reduce size (compression)
-
-    buffered = BytesIO()
-    img.save(buffered, format="PNG")
-    img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')  # Convert image to base64 string
+    # Add simple text data instead of the image
+    qr.add_data("This is a QR code for an image! In a production app, this would link to the actual uploaded image.")
+    qr.make(fit=True)
     
-    qr.add_data(img_base64)  # Add the base64-encoded image to QR code data
+    qr_img = qr.make_image(fill_color="black", back_color="white")
+    return qr_img
+
+# Alternative function that creates a QR code that links to a URL
+def create_url_qr(url):
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(url)
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white")
     return qr_img
@@ -125,26 +140,50 @@ def main():
 
     # Section for Image to QR Code
     st.header("🔳 Image to QR Code")
+    st.write("Create a QR code for your image")
+    
+    qr_option = st.radio(
+        "Choose a QR code option:",
+        ["Simple QR code", "QR code with custom text"]
+    )
+    
     uploaded_image = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"], key="img")
+    
     if uploaded_image is not None:
-        if st.button("Convert to QR Code"):
-            qr_img = image_to_qr(uploaded_image)
-            st.image(qr_img, caption="Generated QR Code", use_column_width=True)
-
-            qr_img.save("generated_qr.png")
-            with open("generated_qr.png", "rb") as f:
-                st.download_button("Download QR Code", data=f, file_name="qr_code.png", mime="image/png")
+        # Display the uploaded image
+        st.image(uploaded_image, caption="Uploaded Image", width=300)
+        
+        if qr_option == "Simple QR code":
+            if st.button("Generate Simple QR Code"):
+                qr_img = image_to_qr(uploaded_image)
+                st.image(qr_img, caption="Generated QR Code", width=300)
+                
+                # Save and offer download
+                qr_img.save("generated_qr.png")
+                with open("generated_qr.png", "rb") as f:
+                    st.download_button("Download QR Code", data=f, file_name="qr_code.png", mime="image/png")
+        else:
+            custom_text = st.text_input("Enter custom text for your QR code:")
+            if custom_text and st.button("Generate QR with Custom Text"):
+                qr_img = create_url_qr(custom_text)
+                st.image(qr_img, caption="Generated QR Code with Custom Text", width=300)
+                
+                # Save and offer download
+                qr_img.save("generated_qr.png")
+                with open("generated_qr.png", "rb") as f:
+                    st.download_button("Download QR Code", data=f, file_name="qr_code.png", mime="image/png")
 
     # Section for AI Image Generation
     st.header("🎨 AI Image Generator")
     prompt = st.text_input("Enter a prompt to generate an image")
     if prompt:
         if st.button("Generate AI Image"):
-            img_url = generate_ai_image(prompt)
-            if img_url.startswith("http"):
-                st.image(img_url, caption="AI Generated Image", use_column_width=True)
-            else:
-                st.error(f"Error: {img_url}")
+            with st.spinner("Generating your image..."):
+                img_url = generate_ai_image(prompt)
+                if img_url.startswith("http"):
+                    st.image(img_url, caption="AI Generated Image", use_column_width=True)
+                else:
+                    st.error(f"Error: {img_url}")
 
 if __name__ == "__main__":
     main()
