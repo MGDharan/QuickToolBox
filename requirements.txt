@@ -7,4 +7,5 @@ PyMuPDF
 PyPDF2
 qrcode
 tensorflow
+tf-keras
 # OR torch if you prefer PyTorch
