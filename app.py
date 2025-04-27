@@ -10,8 +10,15 @@ from pdf2docx import Converter
 from openai import OpenAI
 from io import BytesIO
 
-# Initialize OpenAI client securely
-client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+# ✅ Safely get OpenAI API key from secrets
+api_key = st.secrets.get("openai", {}).get("api_key")
+
+if not api_key:
+    st.error("API Key not found. Please add it to .streamlit/secrets.toml")
+    st.stop()
+
+# ✅ Initialize OpenAI client with API key
+client = OpenAI(api_key=api_key)
 
 # Function to convert DOCX to PDF
 def docx_to_pdf(input_path, output_path):
@@ -19,11 +26,9 @@ def docx_to_pdf(input_path, output_path):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-
     for para in document.paragraphs:
         text = para.text.encode('latin-1', 'replace').decode('latin-1')
         pdf.multi_cell(0, 10, text)
-
     pdf.output(output_path)
 
 # Function to convert PDF to DOCX
@@ -50,13 +55,12 @@ def create_text_qr(text):
     )
     qr.add_data(text)
     qr.make(fit=True)
-    
     img = qr.make_image(fill_color="black", back_color="white")
     buffered = BytesIO()
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Function to generate image from text (AI)
+# Function to generate AI image using OpenAI
 def generate_ai_image(prompt):
     try:
         response = client.images.generate(
@@ -70,7 +74,7 @@ def generate_ai_image(prompt):
     except Exception as e:
         return f"Error: {str(e)}"
 
-# Streamlit app
+# Main Streamlit app
 def main():
     st.title("🔥 QuickToolBox - Convert, Generate & Create! 🔥")
 
@@ -155,7 +159,6 @@ def main():
 
     # Section for AI Image Generator
     st.header("🎨 AI Image Generator")
-    
     prompt = st.text_input("Enter a prompt to generate an image")
     if prompt:
         if st.button("Generate AI Image", key="generate_ai"):
