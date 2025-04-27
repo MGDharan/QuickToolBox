@@ -7,12 +7,12 @@ from PIL import Image
 import base64
 import PyPDF2
 from pdf2docx import Converter
-import openai
+from openai import OpenAI
 from io import BytesIO
 
-# Set OpenAI API key 
+# Initialize OpenAI client with API key
 # NOTE: This is for demonstration only. In production, use secrets management
-openai.api_key = "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"
+client = OpenAI(api_key="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")
 
 # Function to convert DOCX to PDF
 def docx_to_pdf(input_path, output_path):
@@ -60,15 +60,19 @@ def create_text_qr(text):
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Function to generate image from text (AI)
+# Function to generate image from text (AI) - Updated for OpenAI API v1.0.0+
 def generate_ai_image(prompt):
     try:
-        response = openai.Image.create(
+        response = client.images.generate(
+            model="dall-e-3",
             prompt=prompt,
             n=1,
-            size="512x512"
+            size="1024x1024",
+            quality="standard"
         )
-        return response['data'][0]['url']
+        
+        # The new API returns an object, not a dictionary
+        return response.data[0].url
     except Exception as e:
         return f"Error: {str(e)}"
 
