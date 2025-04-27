@@ -10,6 +10,10 @@ from pdf2docx import Converter
 import openai
 from io import BytesIO
 
+# Set OpenAI API key 
+# NOTE: This is for demonstration only. In production, use secrets management
+openai.api_key = "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"
+
 # Function to convert DOCX to PDF
 def docx_to_pdf(input_path, output_path):
     document = Document(input_path)
@@ -58,21 +62,7 @@ def create_text_qr(text):
 
 # Function to generate image from text (AI)
 def generate_ai_image(prompt):
-    # Try to get API key from Streamlit secrets or environment variables
     try:
-        # First try to get from Streamlit secrets
-        api_key = st.secrets.get("OPENAI_API_KEY")
-        
-        # If not found in secrets, try environment variables
-        if api_key is None:
-            api_key = os.environ.get("OPENAI_API_KEY")
-            
-        # If still not found, return an error
-        if api_key is None:
-            return "API key not found. Please set OPENAI_API_KEY in Streamlit secrets or environment variables."
-            
-        openai.api_key = api_key
-        
         response = openai.Image.create(
             prompt=prompt,
             n=1,
@@ -171,11 +161,8 @@ def main():
             except Exception as e:
                 st.error(f"An error occurred while generating the QR code: {e}")
 
-    # Section for AI Image Generation
+    # Section for AI Image Generator
     st.header("🎨 AI Image Generator")
-    
-    # Notice about API key requirement
-    st.info("Note: This feature requires an OpenAI API key. You can set it up in Streamlit secrets or as an environment variable named 'OPENAI_API_KEY'.")
     
     prompt = st.text_input("Enter a prompt to generate an image")
     if prompt:
