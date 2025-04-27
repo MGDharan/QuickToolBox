@@ -7,18 +7,13 @@ from PIL import Image
 import base64
 import PyPDF2
 from pdf2docx import Converter
-from openai import OpenAI
+import openai
 from io import BytesIO
 
-# ✅ Safely get OpenAI API key from secrets
+# Initialize OpenAI client with API key
+# NOTE: This is for demonstration only. In production, use secrets management
 api_key = st.secrets.get("openai", {}).get("api_key")
-
-if not api_key:
-    st.error("API Key not found. Please add it to .streamlit/secrets.toml")
-    st.stop()
-
-# ✅ Initialize OpenAI client with API key
-client = OpenAI(api_key=api_key)
+client = openai.Client(api_key=api_key)
 
 # Function to convert DOCX to PDF
 def docx_to_pdf(input_path, output_path):
@@ -26,9 +21,11 @@ def docx_to_pdf(input_path, output_path):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
+
     for para in document.paragraphs:
         text = para.text.encode('latin-1', 'replace').decode('latin-1')
         pdf.multi_cell(0, 10, text)
+
     pdf.output(output_path)
 
 # Function to convert PDF to DOCX
@@ -55,18 +52,21 @@ def create_text_qr(text):
     )
     qr.add_data(text)
     qr.make(fit=True)
+    
+    # Create a PIL image
     img = qr.make_image(fill_color="black", back_color="white")
+    
+    # Convert PIL image to bytes for Streamlit
     buffered = BytesIO()
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Function to generate AI image using OpenAI
+# Function to generate image from text (AI) - updated for OpenAI 1.0+
 def generate_ai_image(prompt):
     try:
         response = client.images.generate(
             model="dall-e-3",
             prompt=prompt,
-            n=1,
             size="1024x1024",
             quality="standard"
         )
@@ -74,7 +74,7 @@ def generate_ai_image(prompt):
     except Exception as e:
         return f"Error: {str(e)}"
 
-# Main Streamlit app
+# Streamlit app for QuickToolBox
 def main():
     st.title("🔥 QuickToolBox - Convert, Generate & Create! 🔥")
 
@@ -132,6 +132,7 @@ def main():
                 with open(merged_output, "rb") as f:
                     st.download_button("Download Merged PDF", f, file_name="merged.pdf", mime="application/pdf")
 
+                # Clean up temporary files
                 for path in pdf_paths:
                     os.remove(path)
             except Exception as e:
@@ -146,8 +147,13 @@ def main():
     if qr_text:
         if st.button("Generate QR Code", key="generate_qr"):
             try:
+                # Generate QR code as bytes
                 qr_bytes = create_text_qr(qr_text)
+                
+                # Display the QR code
                 st.image(qr_bytes, caption="Generated QR Code", width=300)
+                
+                # Offer download option
                 st.download_button(
                     label="Download QR Code",
                     data=qr_bytes,
@@ -159,6 +165,7 @@ def main():
 
     # Section for AI Image Generator
     st.header("🎨 AI Image Generator")
+    
     prompt = st.text_input("Enter a prompt to generate an image")
     if prompt:
         if st.button("Generate AI Image", key="generate_ai"):
@@ -167,7 +174,7 @@ def main():
                 if img_url.startswith("http"):
                     st.image(img_url, caption="AI Generated Image", use_column_width=True)
                 else:
-                    st.error(img_url)
+                    st.error(img_url)  # Display the error message returned from the function
 
 if __name__ == "__main__":
     main()
