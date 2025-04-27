@@ -1,12 +1,7 @@
 streamlit
 fpdf
-docx
-reportlab
 pillow
-PyMuPDF
-PyPDF2
 qrcode
-tensorflow
-tf-keras
-torch
-# OR torch if you prefer PyTorch
+PyPDF2
+pdf2docx
+openai
