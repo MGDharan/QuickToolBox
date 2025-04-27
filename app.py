@@ -1,8 +1,10 @@
 import streamlit as st
+import os
 from docx import Document
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
-import os
+import instaloader
+from pytube import YouTube
 
 # Function to convert DOCX to PDF
 def docx_to_pdf(input_path, output_path):
@@ -24,25 +26,44 @@ def docx_to_pdf(input_path, output_path):
 
     pdf.save()
 
+# Function to download Instagram post or video
+def download_instagram_post(post_url, download_dir):
+    loader = instaloader.Instaloader()
+    try:
+        post = instaloader.Post.from_url(loader.context, post_url)
+        filename = os.path.join(download_dir, f"{post.owner_username}_{post.shortcode}")
+        loader.download_post(post, target=filename)
+        return f"Downloaded to {filename}"
+    except Exception as e:
+        return f"Error downloading post: {e}"
+
+# Function to download YouTube video
+def download_youtube_video(url, download_dir):
+    try:
+        yt = YouTube(url)
+        stream = yt.streams.get_highest_resolution()
+        stream.download(download_dir)
+        return f"Downloaded video: {yt.title}"
+    except Exception as e:
+        return f"Error downloading video: {e}"
+
 # Streamlit app for file upload and conversion
 def main():
-    st.title("DOCX to PDF Converter")
-    
+    st.title("QuickToolBox - DOCX to PDF, Instagram & YouTube Downloader")
+
+    # DOCX to PDF Conversion
+    st.subheader("DOCX to PDF Converter")
     uploaded_file = st.file_uploader("Upload a DOCX file", type="docx")
-    
     if uploaded_file is not None:
-        # Save the uploaded DOCX file to a temporary location
         with open("uploaded_file.docx", "wb") as f:
             f.write(uploaded_file.getbuffer())
 
         output_pdf_path = "converted_file.pdf"
 
         try:
-            # Convert DOCX to PDF
             docx_to_pdf("uploaded_file.docx", output_pdf_path)
             st.success("Conversion successful!")
             
-            # Provide a link for downloading the PDF
             with open(output_pdf_path, "rb") as pdf_file:
                 st.download_button(
                     label="Download PDF",
@@ -53,8 +74,25 @@ def main():
         except Exception as e:
             st.error(f"An error occurred during conversion: {e}")
 
-        # Clean up temporary files
         os.remove("uploaded_file.docx")
+
+    # Instagram Post/Video Downloader
+    st.subheader("Instagram Post/Video Downloader")
+    instagram_url = st.text_input("Enter Instagram Post URL")
+    if instagram_url:
+        download_button = st.button("Download Instagram Post")
+        if download_button:
+            download_message = download_instagram_post(instagram_url, "downloads/")
+            st.write(download_message)
+
+    # YouTube Video Downloader
+    st.subheader("YouTube Video Downloader")
+    youtube_url = st.text_input("Enter YouTube Video URL")
+    if youtube_url:
+        download_button = st.button("Download YouTube Video")
+        if download_button:
+            download_message = download_youtube_video(youtube_url, "downloads/")
+            st.write(download_message)
 
 if __name__ == "__main__":
     main()
