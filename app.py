@@ -10,9 +10,8 @@ from pdf2docx import Converter
 from openai import OpenAI
 from io import BytesIO
 
-# Initialize OpenAI client with API key
-# NOTE: This is for demonstration only. In production, use secrets management
-client = OpenAI(api_key="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")
+# Initialize OpenAI client securely
+client = OpenAI(api_key=st.secrets["openai"]["api_key"])
 
 # Function to convert DOCX to PDF
 def docx_to_pdf(input_path, output_path):
@@ -52,15 +51,12 @@ def create_text_qr(text):
     qr.add_data(text)
     qr.make(fit=True)
     
-    # Create a PIL image
     img = qr.make_image(fill_color="black", back_color="white")
-    
-    # Convert PIL image to bytes for Streamlit
     buffered = BytesIO()
     img.save(buffered, format="PNG")
     return buffered.getvalue()
 
-# Function to generate image from text (AI) - Updated for OpenAI API v1.0.0+
+# Function to generate image from text (AI)
 def generate_ai_image(prompt):
     try:
         response = client.images.generate(
@@ -70,13 +66,11 @@ def generate_ai_image(prompt):
             size="1024x1024",
             quality="standard"
         )
-        
-        # The new API returns an object, not a dictionary
         return response.data[0].url
     except Exception as e:
         return f"Error: {str(e)}"
 
-# Streamlit app for QuickToolBox
+# Streamlit app
 def main():
     st.title("🔥 QuickToolBox - Convert, Generate & Create! 🔥")
 
@@ -134,7 +128,6 @@ def main():
                 with open(merged_output, "rb") as f:
                     st.download_button("Download Merged PDF", f, file_name="merged.pdf", mime="application/pdf")
 
-                # Clean up temporary files
                 for path in pdf_paths:
                     os.remove(path)
             except Exception as e:
@@ -149,13 +142,8 @@ def main():
     if qr_text:
         if st.button("Generate QR Code", key="generate_qr"):
             try:
-                # Generate QR code as bytes
                 qr_bytes = create_text_qr(qr_text)
-                
-                # Display the QR code
                 st.image(qr_bytes, caption="Generated QR Code", width=300)
-                
-                # Offer download option
                 st.download_button(
                     label="Download QR Code",
                     data=qr_bytes,
@@ -176,7 +164,7 @@ def main():
                 if img_url.startswith("http"):
                     st.image(img_url, caption="AI Generated Image", use_column_width=True)
                 else:
-                    st.error(img_url)  # Display the error message returned from the function
+                    st.error(img_url)
 
 if __name__ == "__main__":
     main()
